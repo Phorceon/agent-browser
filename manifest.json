@@ -1,0 +1,58 @@
+{
+  "manifest_version": 3,
+  "name": "Agent Browser",
+  "version": "1.0.0",
+  "description": "AI assistant that controls your browser tabs using your own models",
+  "permissions": [
+    "sidePanel",
+    "tabs",
+    "activeTab",
+    "scripting",
+    "storage",
+    "webNavigation",
+    "debugger",
+    "downloads",
+    "history"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "action": {
+    "default_title": "Open Agent Browser",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["src/content-ui.css"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Browser</title>
+  <link rel="stylesheet" href="src/sidepanel.css">
+</head>
+<body>
+  <div id="app">
+    <header id="header">
+      <div id="header-left">
+        <span id="status-dot" class="dot idle"></span>
+        <span id="title">Agent Browser</span>
+      </div>
+      <div id="header-right">
+        <button id="tab-info-btn" title="Current tab info">⊙</button>
+        <button id="settings-btn" title="Settings">⚙</button>
+        <button id="clear-btn" title="Clear conversation">⊘</button>
+      </div>
+    </header>
+
+    <div id="model-bar">
+      <select id="model-select">
+        <option value="">⚠ Configure model in settings</option>
+      </select>
+      <div id="tabs-indicator">
+        <span id="tab-count">0 tabs</span>
+      </div>
+    </div>
+
+    <div id="messages" role="log" aria-live="polite"></div>
+
+    <div id="action-feed" class="hidden">
+      <div id="action-feed-header">
+        <span>▶ Agent Actions</span>
+        <button id="toggle-feed">▲</button>
+      </div>
+      <div id="action-list"></div>
+    </div>
+
+    <div id="input-area">
+      <textarea
+        id="user-input"
+        placeholder="What should the agent do? (Shift+Enter for newline, Enter to send)"
+        rows="3"
+        autofocus
+      ></textarea>
+      <div id="input-actions">
+        <button id="tab-selector-btn" title="Select tabs to control">Tabs</button>
+        <button id="send-btn" id="send-btn">Send ↵</button>
+        <button id="stop-btn" class="hidden">■ Stop</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-selector-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Select Tabs to Control</h3>
+        <button id="close-modal">✕</button>
+      </div>
+      <div id="tab-list"></div>
+      <div class="modal-footer">
+        <button id="select-all-tabs">All</button>
+        <button id="deselect-all-tabs">None</button>
+        <button id="confirm-tabs">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="src/sidepanel.js" type="module"></script>
+</body>
+</html>
