@@ -246,10 +246,17 @@ textBefore: msg.textBefore || '',
           break; // Success
         } catch (err) {
           const msg = err.message || '';
-          if ((msg.includes('429') || msg.toLowerCase().includes('timeout') || msg.includes('50') || msg.toLowerCase().includes('rate')) && retries < MAX_RETRIES && !this.aborted) {
+          // More aggressive retry on rate limiting - retry on ANY error except explicit rejects
+          const isRetryable = !msg.toLowerCase().includes('exhausted') && 
+                              !msg.toLowerCase().includes('insufficient credits') &&
+                              !msg.toLowerCase().includes('invalid api key') &&
+                              retries < MAX_RETRIES && 
+                              !this.aborted;
+          
+          if (isRetryable) {
             retries++;
             const backoff = retries * 3000; // 3s, 6s, 9s...
-            console.log(`\n  [API Error: ${msg}. Retrying in ${backoff/1000}s...]`);
+            console.log(`\n  [API Error: ${msg.slice(0,100)}. Retrying in ${backoff/1000}s... (attempt ${retries}/${MAX_RETRIES})]`);
             await new Promise(r => setTimeout(r, backoff));
           } else {
             throw new Error(`AI provider error: ${msg}`);
@@ -317,7 +324,7 @@ textBefore: msg.textBefore || '',
               this.messages.push({ __image__: true, role: 'user', imageBase64: result.base64, imageMimeType: result.mimeType || 'image/jpeg', textBefore: desc });
             }
           }
-          await new Promise(r => setTimeout(r, 3000));
+          // No throttle on retry path either
           continue;
         }
         this.messages.push({ role: 'assistant', content: text });
@@ -390,8 +397,8 @@ textBefore: desc,
 }
       }
 
-      // Throttle: 3 second pause between tool calls (OpenRouter free tier: 20 req/min)
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // No throttle - OpenRouter free tier allows 20 req/min, we run ~3-4 req/min max
+      // If rate limited, the retry mechanism will handle it
 
       // Loop back to let AI process tool results and decide next action
     }
