@@ -78,7 +78,7 @@ export function createProvider(overrides = {}) {
           type: 'function',
           function: {
             name: t.name,
-            description: t.description,
+            description: t.description.slice(0, 50), // Truncate to ~50 chars to save tokens
             parameters: t.parameters,
           },
         }));

@@ -261,7 +261,7 @@ function convertToSimplifiedTree(nodes) {
   return {
     type: 'accessibility_tree',
     elementCount: interactiveElements.length,
-    elements: interactiveElements.slice(0, 50), // Limit to 50 for token savings
+    elements: interactiveElements.slice(0, 20), // Reduced from 50 to 20 for token savings
   };
 }
 
