@@ -227,8 +227,11 @@ function convertToSimplifiedTree(nodes) {
   function processNode(node, depth = 0) {
     if (!node) return;
     
-    const role = node.role?.value || node.role || '';
-    const name = node.name?.value || node.name || '';
+    const role = String(node.role?.value || node.role || '');
+    const name = String(node.name?.value || node.name || '');
+    
+    // Skip empty or non-string names
+    if (!name || typeof name !== 'string') return;
     
     // Check if interactable
     const isInteractable = interactableRoles.some(r => 
