@@ -248,7 +248,7 @@ textBefore: msg.textBefore || '',
           const msg = err.message || '';
           if ((msg.includes('429') || msg.toLowerCase().includes('timeout') || msg.includes('50') || msg.toLowerCase().includes('rate')) && retries < MAX_RETRIES && !this.aborted) {
             retries++;
-            const backoff = retries * 8000; // 8s, 16s, 24s...
+            const backoff = retries * 3000; // 3s, 6s, 9s...
             console.log(`\n  [API Error: ${msg}. Retrying in ${backoff/1000}s...]`);
             await new Promise(r => setTimeout(r, backoff));
           } else {
@@ -317,7 +317,7 @@ textBefore: msg.textBefore || '',
               this.messages.push({ __image__: true, role: 'user', imageBase64: result.base64, imageMimeType: result.mimeType || 'image/jpeg', textBefore: desc });
             }
           }
-          await new Promise(r => setTimeout(r, 8000));
+          await new Promise(r => setTimeout(r, 3000));
           continue;
         }
         this.messages.push({ role: 'assistant', content: text });
@@ -390,9 +390,8 @@ textBefore: desc,
 }
       }
 
-      // Throttle: Mandatory 8 second pause strictly for OpenRouter Free Tier limits (Qwen/etc)
-      // Free LLM endpoints have exceptionally strict burst/RPM filters.
-      await new Promise(resolve => setTimeout(resolve, 8000));
+      // Throttle: 3 second pause between tool calls (OpenRouter free tier: 20 req/min)
+      await new Promise(resolve => setTimeout(resolve, 3000));
 
       // Loop back to let AI process tool results and decide next action
     }
