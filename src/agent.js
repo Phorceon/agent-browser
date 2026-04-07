@@ -132,60 +132,37 @@ export class Agent {
     result.push({ role: 'system', content: fullSystemPrompt });
 
     // Find the index of the VERY LAST image message in the history
-    let lastImageIndex = -1;
-    let lastObserveIndex = -1;
+    // Only keep last 10 messages to minimize token usage
+    const recentMessages = this.messages.slice(-10);
     
-    for (let i = 0; i < this.messages.length; i++) {
-      if (this.messages[i].__image__) {
-        lastImageIndex = i;
-      }
-      if (this.messages[i].role === 'tool' && (this.messages[i].name === 'observe' || this.messages[i].name === 'get_page_content')) {
-        lastObserveIndex = i;
-      }
-    }
-
-    for (let i = 0; i < this.messages.length; i++) {
-      const msg = this.messages[i];
-if (msg.__image__) {
-if (i === lastImageIndex) {
-// This is the latest screenshot; keep the image data
-result.push({
-role: 'user',
-__image__: true,
-imageBase64: msg.imageBase64,
-imageMimeType: msg.imageMimeType || 'image/jpeg',
-textBefore: msg.textBefore || '',
-});
-} else {
-          // Older screenshots: strip the image to save tokens!
+    for (let i = 0; i < recentMessages.length; i++) {
+      const msg = recentMessages[i];
+      
+      // Handle image messages - only keep absolute latest
+      if (msg.__image__) {
+        if (i === recentMessages.length - 1) {
           result.push({
             role: 'user',
-            content: `${msg.textBefore || ''}\n[Previous screenshot omitted to save context length]`
+            __image__: true,
+            imageBase64: msg.imageBase64,
+            imageMimeType: msg.imageMimeType || 'image/jpeg',
+            textBefore: msg.textBefore || 'Latest screenshot',
           });
         }
-      } else if (msg.role === 'tool' && (msg.name === 'observe' || msg.name === 'get_page_content')) {
-        if (i === lastObserveIndex) {
-          result.push(msg); // Keep latest full snapshot
-        } else {
-          // Truncate older bulky snapshots to avoid 429 rate limits
-          result.push({
-            ...msg,
-            content: `{"status": "Prior complete page snapshot omitted to save token limits. Please rely on your latest observe() call."}`
-          });
-        }
-      } else if (msg.role === 'tool' && msg.content && msg.content.length > 2000) {
-        // For other massive tool outputs (evaluate_js, find_elements, etc), only keep full if very recent
-        if (i < this.messages.length - 15) {
-          result.push({
-            ...msg,
-            content: `{"status": "Old result omitted to save context limit.", "preview": ${JSON.stringify(msg.content.slice(0, 500) + '...')}}`
-          });
-        } else {
-          result.push(msg);
-        }
-      } else {
-        result.push(msg);
+        continue;
       }
+      
+      // Truncate all tool results to 500 chars max
+      if (msg.role === 'tool') {
+        const truncated = msg.content?.slice(0, 500) || '';
+        result.push({
+          ...msg,
+          content: truncated + (msg.content?.length > 500 ? '... [truncated]' : ''),
+        });
+        continue;
+      }
+      
+      result.push(msg);
     }
 
     return result;
