@@ -324,7 +324,8 @@ textBefore: msg.textBefore || '',
               this.messages.push({ __image__: true, role: 'user', imageBase64: result.base64, imageMimeType: result.mimeType || 'image/jpeg', textBefore: desc });
             }
           }
-          // No throttle on retry path either
+          // Minimal delay on retry path
+          await new Promise(r => setTimeout(r, 1500));
           continue;
         }
         this.messages.push({ role: 'assistant', content: text });
@@ -397,8 +398,8 @@ textBefore: desc,
 }
       }
 
-      // No throttle - OpenRouter free tier allows 20 req/min, we run ~3-4 req/min max
-      // If rate limited, the retry mechanism will handle it
+      // Minimal 1.5s delay between steps to prevent overwhelming API
+      await new Promise(r => setTimeout(r, 1500));
 
       // Loop back to let AI process tool results and decide next action
     }
