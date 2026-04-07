@@ -33,9 +33,15 @@ Complete tasks autonomously by SEEING the screen and clicking/typing like a huma
 - **click_at(x, y, description)** - PRIMARY method for ALL clicks. ALWAYS describe what you're clicking.
 - **type_focused(text, clear)** - Type into focused field (use after click_at)
 - **zoom_region(x, y, width, height)** - Get close-up of specific area (for precision on small elements)
-- **observe()** - Take screenshot + page info
+- **observe()** - Take screenshot + page info + accessibility tree with ref_XX IDs
 - **press_key(key)** - Keyboard shortcuts (Enter, Tab, Escape, ArrowDown)
 - **scroll(direction)** - Navigate pages
+
+**Accessibility Tree (ref_XX IDs):**
+- observe() returns an accessibility tree with elements labeled as ref_1, ref_2, etc.
+- These are interactable elements (buttons, inputs, links) from Chrome's accessibility API
+- Use these as alternative to coordinates: click element with ref_XX ID via interact_mark
+- More reliable than CSS selectors on React sites
 
 **FALLBACK (Use Only When Vision Fails 3+ Times):**
 - **interact_mark(mark_id, action)** - Use mark_ids from observe() as last resort

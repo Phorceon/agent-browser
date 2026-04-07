@@ -186,6 +186,82 @@ return results;
 });
 }
 
+/**
+ * Get accessibility tree via CDP - Comet-style approach
+ * Returns simplified YAML with ref_XX IDs for element references
+ */
+async function getAccessibilityTree(page) {
+  try {
+    // Get CDP session from the page's underlying context
+    const context = page.context();
+    const cdpSession = await context.newCDPSession(page);
+    
+    // Enable accessibility domain
+    await cdpSession.send('Accessibility.enable');
+    
+    // Get full accessibility tree
+    const result = await cdpSession.send('Accessibility.getFullAXTree');
+    const axTree = result.nodes || [];
+    
+    // Close CDP session
+    cdpSession.detach();
+    
+    // Convert to simplified format with ref_XX IDs
+    const simplified = convertToSimplifiedTree(axTree);
+    return simplified;
+  } catch (e) {
+    console.log(`[accessibility] Failed, falling back: ${e.message}`);
+    return null;
+  }
+}
+
+/**
+ * Convert accessibility tree to simplified format with ref_XX IDs
+ */
+function convertToSimplifiedTree(nodes) {
+  const interactableRoles = ['button', 'textbox', 'combobox', 'checkbox', 'radio', 'link', 'menuitem', 'tab', 'searchbox'];
+  const interactiveElements = [];
+  let counter = 1;
+  
+  // Flatten and filter the tree
+  function processNode(node, depth = 0) {
+    if (!node) return;
+    
+    const role = node.role?.value || node.role || '';
+    const name = node.name?.value || node.name || '';
+    
+    // Check if interactable
+    const isInteractable = interactableRoles.some(r => 
+      role.toLowerCase().includes(r)
+    );
+    
+    if (isInteractable && name && name.trim()) {
+      const refId = `ref_${counter++}`;
+      interactiveElements.push({
+        ref: refId,
+        role: role,
+        label: name.trim().slice(0, 80),
+        description: node.description?.value || node.description || '',
+        value: node.value?.value || node.value || '',
+        focused: node.focused || false,
+      });
+    }
+    
+    // Process children
+    if (node.children) {
+      node.children.forEach(child => processNode(child, depth + 1));
+    }
+  }
+  
+  nodes.forEach(node => processNode(node));
+  
+  return {
+    type: 'accessibility_tree',
+    elementCount: interactiveElements.length,
+    elements: interactiveElements.slice(0, 50), // Limit to 50 for token savings
+  };
+}
+
 // ─── Tool Definitions (OpenAI function calling format) ─────────────────────
 
 export const TOOL_DEFINITIONS = [
@@ -741,32 +817,39 @@ export async function executeTool(toolName, params) {
       await page.screenshot({ path: obsPath, fullPage: false, type: 'jpeg', quality: 30 });
       const obsBase64 = readFileSync(obsPath).toString('base64');
       
-      // 2. Try to get DOM info with timeout (fallback, may fail on React)
-      let obsContent = { url: page.url(), title: await page.title().catch(() => 'Unknown') };
+      // Get page info once
+      const pageUrl = page.url();
+      const pageTitle = await page.title().catch(() => 'Unknown');
+      
+      // 2. Try accessibility tree via CDP (primary), fall back to DOM snapshot
+      let obsContent = { url: pageUrl, title: pageTitle };
       
       try {
-        // Try marks with timeout
-        const marksPromise = drawMarks(page);
-        const marks = await Promise.race([
-          marksPromise,
-          new Promise(resolve => setTimeout(() => resolve(null), 3000))
+        // Try accessibility tree with timeout (Comet-style)
+        const axPromise = getAccessibilityTree(page);
+        const axResult = await Promise.race([
+          axPromise,
+          new Promise(resolve => setTimeout(() => resolve(null), 4000))
         ]);
         
-        // Try DOM snapshot with timeout
-        const domPromise = getDOMSnapshot(page);
-        const fallbackContent = { url: page.url(), title: await page.title().catch(() => 'Unknown') };
-        obsContent = await Promise.race([
-          domPromise,
-          new Promise(resolve => setTimeout(() => resolve(fallbackContent), 3000))
-        ]);
-        
-        // Attach marks if we got them
-        if (marks) {
-          obsContent.interactive_marks = marks;
+        if (axResult && axResult.elements && axResult.elements.length > 0) {
+          obsContent = {
+            url: pageUrl,
+            title: pageTitle,
+            accessibility_tree: axResult,
+          };
+        } else {
+          // Fallback to DOM snapshot if accessibility tree fails or is empty
+          const domPromise = getDOMSnapshot(page);
+          const fallbackContent = { url: pageUrl, title: pageTitle };
+          obsContent = await Promise.race([
+            domPromise,
+            new Promise(resolve => setTimeout(() => resolve(fallbackContent), 3000))
+          ]);
         }
       } catch (e) {
-        // DOM operations failed - return minimal info, vision still works
-        console.log(`[observe] DOM operations failed, using minimal info: ${e.message}`);
+        // Both failed - return minimal info, vision still works
+        console.log(`[observe] DOM and accessibility failed, using minimal info: ${e.message}`);
       }
       
       return {
