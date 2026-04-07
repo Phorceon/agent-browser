@@ -262,7 +262,63 @@ textBefore: msg.textBefore || '',
       // No tool calls — AI is done responding
       if (!toolCalls || toolCalls.length === 0) {
         if (!text || text.trim() === '') {
-          throw new Error("AI API hit its output limit while thinking and cleanly cut off before it could finish! (Try typing your prompt again).");
+          // AI output was truncated - auto-retry once
+          console.log(`\n  [Output truncated, retrying...]`);
+          const retryResponse = await this.provider.chat({
+            messages: providerMessages,
+            tools: TOOL_DEFINITIONS,
+            systemPrompt: SYSTEM_PROMPT,
+            onToken: (tok) => this.onToken?.(tok),
+          });
+          const retryText = retryResponse.text;
+          const retryToolCalls = retryResponse.toolCalls;
+          
+          if (!retryToolCalls || retryToolCalls.length === 0) {
+            if (!retryText || retryText.trim() === '') {
+              throw new Error("AI API hit its output limit while thinking and cleanly cut off before it could finish! (Try typing your prompt again).");
+            }
+            this.messages.push({ role: 'assistant', content: retryText });
+            return retryText;
+          }
+          // Use the retry result
+          this.messages.push({ 
+            role: 'assistant', 
+            content: retryText || null, 
+            tool_calls: retryToolCalls.map(tc => ({ 
+              id: tc.id, 
+              type: 'function', 
+              function: { name: tc.name, arguments: JSON.stringify(tc.args) } 
+            })) 
+          });
+          // Continue processing retry tool calls
+          for (const tc of retryToolCalls) {
+            if (this.aborted) break;
+            this.onToolCall?.(tc.name, tc.args);
+            let result;
+            try {
+              result = await executeTool(tc.name, tc.args);
+              this.onToolResult?.(tc.name, result, null);
+            } catch (err) {
+              result = { error: err.message };
+              this.onToolResult?.(tc.name, result, err);
+            }
+            const hasScreenshot = result?.__screenshot__;
+            const resultForText = hasScreenshot ? { savedTo: result.savedTo, pageContent: result.pageContent || null } : result;
+            const resultStr = JSON.stringify(resultForText);
+            this.messages.push({ role: 'tool', tool_call_id: tc.id, name: tc.name, content: resultStr });
+            if (result && result.error) {
+              this.messages.push({ 
+                role: 'user', 
+                content: `SYSTEM WARNING: The tool call '${tc.name}' failed with an error. Before proceeding with next steps, you must: 1. Reflect on why it failed. 2. Choose an alternative approach. 3. Optionally call 'remember_lesson' to document a permanent rule or skill to avoid this class of mistakes in the future.` 
+              });
+            }
+            if (hasScreenshot && result.base64 && this.provider.supportsVision) {
+              const desc = result.pageContent ? `Screenshot taken. Page: "${result.pageContent.title}" at ${result.pageContent.url}` : 'Screenshot taken.';
+              this.messages.push({ __image__: true, role: 'user', imageBase64: result.base64, imageMimeType: result.mimeType || 'image/jpeg', textBefore: desc });
+            }
+          }
+          await new Promise(r => setTimeout(r, 8000));
+          continue;
         }
         this.messages.push({ role: 'assistant', content: text });
         return text;
