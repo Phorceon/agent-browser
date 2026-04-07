@@ -34,6 +34,8 @@ Complete tasks autonomously by SEEING the screen and clicking/typing like a huma
 - **type_focused(text, clear)** - Type into focused field (use after click_at)
 - **zoom_region(x, y, width, height)** - Get close-up of specific area (for precision on small elements)
 - **observe()** - Take screenshot + page info + accessibility tree with ref_XX IDs
+- **get_page_state()** - Get recent page events (console errors, navigation status). Use after navigate() to verify success.
+- **wait_for_load(waitUntil)** - Wait for page to finish loading. Use after navigate() before interacting.
 - **press_key(key)** - Keyboard shortcuts (Enter, Tab, Escape, ArrowDown)
 - **scroll(direction)** - Navigate pages
 

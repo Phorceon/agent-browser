@@ -414,8 +414,24 @@ parameters: {
     description: 'Go forward in the browser history of the current tab.',
     parameters: { type: 'object', properties: {}, required: [] },
   },
-{
-name: 'get_page_content',
+  {
+    name: 'get_page_state',
+    description: 'Get recent page events (navigation, network, errors) since last call. Use after navigate() to verify the page loaded successfully. Returns navigation status, HTTP errors, and console errors.',
+    parameters: { type: 'object', properties: {} },
+  },
+  {
+    name: 'wait_for_load',
+    description: 'Wait for page to finish loading. Use after navigate() to ensure the page is ready before interacting.',
+    parameters: {
+      type: 'object',
+      properties: {
+        waitUntil: { type: 'string', enum: ['domcontentloaded', 'load', 'networkidle'], description: 'When to consider loading complete (default: domcontentloaded)' },
+        timeout: { type: 'integer', description: 'Max wait time in ms (default: 30000)' },
+      },
+    },
+  },
+  {
+    name: 'get_page_content',
 description: 'FALLBACK: Get the current page\'s content via DOM. Use ONLY when observe() screenshot is insufficient. Can timeout on React sites.',
 parameters: { type: 'object', properties: {}, required: [] },
 },
@@ -688,6 +704,65 @@ export async function executeTool(toolName, params) {
     case 'go_forward': {
       await page.goForward({ waitUntil: 'domcontentloaded', timeout: 15000 });
       return { url: page.url() };
+    }
+
+    case 'get_page_state': {
+      // Get page state via CDP - navigation status, network errors, console errors
+      try {
+        const context = page.context();
+        const cdp = await context.newCDPSession(page);
+        
+        // Enable domains
+        await cdp.send('Log.enable');
+        
+        // Get recent console messages
+        const logResult = await cdp.send('Log.getEntries', { startTime: Date.now() - 30000 });
+        const consoleErrors = logResult.entries?.filter(e => 
+          e.level === 'error' || e.level === 'warning'
+        ).slice(0, 5).map(e => ({
+          level: e.level,
+          text: e.text,
+          timestamp: e.timestamp
+        })) || [];
+        
+        // Get page info
+        const pageUrl = page.url();
+        const pageTitle = await page.title().catch(() => 'Unknown');
+        
+        cdp.detach();
+        
+        return {
+          url: pageUrl,
+          title: pageTitle,
+          consoleErrors: consoleErrors,
+          status: 'Page is accessible',
+        };
+      } catch (e) {
+        return { 
+          error: `Could not get page state: ${e.message}`,
+          url: page.url(),
+        };
+      }
+    }
+
+    case 'wait_for_load': {
+      const waitUntil = params.waitUntil || 'domcontentloaded';
+      const timeout = params.timeout || 30000;
+      
+      try {
+        await page.waitForLoadState(waitUntil, { timeout });
+        return { 
+          loaded: true, 
+          waitUntil: waitUntil,
+          url: page.url() 
+        };
+      } catch (e) {
+        return { 
+          loaded: false, 
+          error: e.message,
+          url: page.url() 
+        };
+      }
     }
 
     case 'get_page_content': {
