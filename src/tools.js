@@ -811,9 +811,6 @@ export async function executeTool(toolName, params) {
     }
 
     case 'observe': {
-      // Tab Follower Mechanism: Force the active tab to the forefront
-      await page.bringToFront().catch(() => {});
-      
       // 1. Take screenshot FIRST (primary, always succeeds)
       mkdirSync('screenshots', { recursive: true });
       const obsPath = join('screenshots', `obs_${Date.now()}.jpeg`);

@@ -149,10 +149,9 @@ export async function launchBrowser(config = {}) {
   browserContext.on('page', setupPageHooks);
   browserContext.pages().forEach(setupPageHooks);
 
-  // Force the window to the front by retrieving active tabs
+  // Get active tab
   const pages = browserContext.pages();
   activePage = pages.length > 0 ? pages[pages.length - 1] : await browserContext.newPage();
-  if (activePage) await activePage.bringToFront().catch(() => {});
 
   return browserContext;
 }
@@ -196,7 +195,6 @@ export async function switchToTab(index) {
     throw new Error(`Tab index ${index} out of range (0-${pages.length - 1})`);
   }
   activePage = pages[index];
-  await activePage.bringToFront();
   return activePage;
 }
 
@@ -218,7 +216,6 @@ export async function closeTab(index) {
   if (pages[index] === activePage) {
     const remaining = getContext().pages();
     activePage = remaining[remaining.length - 1];
-    if (activePage) await activePage.bringToFront();
   }
 }
 
