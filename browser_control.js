@@ -3,23 +3,49 @@ const puppeteer = require('puppeteer-core');
 const CHROME_EXECUTABLE = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const CHROME_PROFILE_PATH = '/Users/aditya/Library/Application Support/Google/Chrome/Profile 12';
 
+// Module-level guard to prevent multiple browser launches
+let activeBrowser = null;
+
+/** Simple delay helper (replaces deprecated page.waitForTimeout) */
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function launchBrowser() {
+  if (activeBrowser) {
+    console.log('⚠️  Browser already launched. Reusing existing instance.');
+    const pages = await activeBrowser.pages();
+    const page = pages[0] || await activeBrowser.newPage();
+    return { browser: activeBrowser, page };
+  }
+
   console.log('🚀 Launching YOUR Chrome with Profile 12...');
   console.log(`🔵 Chrome: ${CHROME_EXECUTABLE}`);
   console.log(`📁 Profile: ${CHROME_PROFILE_PATH}`);
 
-  const browser = await puppeteer.launch({
-    executablePath: CHROME_EXECUTABLE,
-    headless: false,
-    devtools: true,
-    userDataDir: CHROME_PROFILE_PATH,
-    defaultViewport: null,
-    args: [
-      '--no-first-run',
-      '--no-default-browser-check',
-      '--disable-blink-features=AutomationControlled'
-    ]
-  });
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      executablePath: CHROME_EXECUTABLE,
+      headless: false,
+      devtools: true,
+      userDataDir: CHROME_PROFILE_PATH,
+      defaultViewport: null,
+      args: [
+        '--no-first-run',
+        '--no-default-browser-check',
+        '--disable-blink-features=AutomationControlled'
+      ]
+    });
+    activeBrowser = browser;
+
+    browser.on('disconnected', () => {
+      activeBrowser = null;
+    });
+  } catch (err) {
+    console.error('❌ Failed to launch browser:', err.message);
+    throw err;
+  }
 
   console.log('✅ Chrome launched with Profile 12!');
 
@@ -30,25 +56,25 @@ async function launchBrowser() {
   await page.goto('https://www.youtube.com', { waitUntil: 'networkidle' });
   console.log('📄 YouTube loaded');
 
-  await page.waitForTimeout(2000);
+  await delay(2000);
 
   console.log('🔍 Searching for Judelow...');
   await page.goto('https://www.youtube.com/results?search_query=Judelow', { waitUntil: 'networkidle' });
 
-  await page.waitForTimeout(2000);
+  await delay(2000);
 
   const videoSelector = 'ytd-video-renderer, ytd-rich-item-renderer, ytd-grid-video-renderer';
   const video = await page.waitForSelector(videoSelector, { timeout: 10000 });
   console.log('📋 Found video, clicking...');
   await video.click();
 
-  await page.waitForTimeout(4000);
+  await delay(4000);
   console.log('✅ Video page loaded');
 
   console.log('⬇️ Scrolling to comments...');
   for (let i = 0; i < 15; i++) {
     await page.evaluate(() => window.scrollBy(0, 1000));
-    await page.waitForTimeout(500);
+    await delay(500);
     const comments = await page.$('ytd-comments, ytd-comment-thread-renderer, #comments');
     if (comments) {
       console.log('💬 Comments found!');
@@ -63,4 +89,10 @@ async function launchBrowser() {
   return { browser, page };
 }
 
-launchBrowser().catch(console.error);
+launchBrowser().catch(err => {
+  console.error('💥 Unhandled error:', err);
+  if (activeBrowser) {
+    activeBrowser.close().catch(() => {});
+    activeBrowser = null;
+  }
+});
