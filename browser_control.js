@@ -1,9 +1,17 @@
 const puppeteer = require('puppeteer-core');
+const fs = require('fs');
 
 const CHROME_EXECUTABLE = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const CHROME_PROFILE_PATH = '/Users/aditya/Library/Application Support/Google/Chrome/Profile 12';
 
 async function launchBrowser() {
+  if (!fs.existsSync(CHROME_EXECUTABLE)) {
+    throw new Error(
+      `Chrome executable not found at: ${CHROME_EXECUTABLE}\n` +
+      'Update CHROME_EXECUTABLE in browser_control.js to match your system.'
+    );
+  }
+
   console.log('🚀 Launching YOUR Chrome with Profile 12...');
   console.log(`🔵 Chrome: ${CHROME_EXECUTABLE}`);
   console.log(`📁 Profile: ${CHROME_PROFILE_PATH}`);
