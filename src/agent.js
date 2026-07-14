@@ -229,7 +229,7 @@ export class Agent {
           
           if (!retryToolCalls || retryToolCalls.length === 0) {
             if (!retryText || retryText.trim() === '') {
-              throw new Error("AI API hit its output limit while thinking and cleanly cut off before it could finish! (Try typing your prompt again).");
+              throw new Error("AI API hit its output limit while thinking and cleanly cut off before it could finish! (Try typing your prompt again). ");
             }
             this.messages.push({ role: 'assistant', content: retryText });
             return retryText;
@@ -244,33 +244,8 @@ export class Agent {
               function: { name: tc.name, arguments: JSON.stringify(tc.args) } 
             })) 
           });
-          // Continue processing retry tool calls
-          for (const tc of retryToolCalls) {
-            if (this.aborted) break;
-            this.onToolCall?.(tc.name, tc.args);
-            let result;
-            try {
-              result = await executeTool(tc.name, tc.args);
-              this.onToolResult?.(tc.name, result, null);
-            } catch (err) {
-              result = { error: err.message };
-              this.onToolResult?.(tc.name, result, err);
-            }
-            const hasScreenshot = result?.__screenshot__;
-            const resultForText = hasScreenshot ? { savedTo: result.savedTo, pageContent: result.pageContent || null } : result;
-            const resultStr = JSON.stringify(resultForText);
-            this.messages.push({ role: 'tool', tool_call_id: tc.id, name: tc.name, content: resultStr });
-            if (result && result.error) {
-              this.messages.push({ 
-                role: 'user', 
-                content: `SYSTEM WARNING: The tool call '${tc.name}' failed with an error. Before proceeding with next steps, you must: 1. Reflect on why it failed. 2. Choose an alternative approach. 3. Optionally call 'remember_lesson' to document a permanent rule or skill to avoid this class of mistakes in the future.` 
-              });
-            }
-            if (hasScreenshot && result.base64 && this.provider.supportsVision) {
-              const desc = result.pageContent ? `Screenshot taken. Page: "${result.pageContent.title}" at ${result.pageContent.url}` : 'Screenshot taken.';
-              this.messages.push({ __image__: true, role: 'user', imageBase64: result.base64, imageMimeType: result.mimeType || 'image/jpeg', textBefore: desc });
-            }
-          }
+          // Process tool calls using common method
+          await this._processToolCalls(retryToolCalls);
           // Minimal delay on retry path
           await new Promise(r => setTimeout(r, 1500));
           continue;
@@ -290,79 +265,57 @@ export class Agent {
         })),
       });
 
-      // Execute each tool call
-      for (const tc of toolCalls) {
-        if (this.aborted) break;
-
-        this.onToolCall?.(tc.name, tc.args);
-
-        let result;
-        let execError = null;
-        try {
-          result = await executeTool(tc.name, tc.args);
-          this.onToolResult?.(tc.name, result, null);
-        } catch (err) {
-          execError = err;
-          result = { error: err.message };
-          this.onToolResult?.(tc.name, result, err);
-        }
-
-        const hasScreenshot = result?.__screenshot__;
-        // Build the text version of the result (without the huge base64)
-        const resultForText = hasScreenshot
-          ? { savedTo: result.savedTo, pageContent: result.pageContent || null }
-          : result;
-        const resultStr = JSON.stringify(resultForText);
-
-        // Add tool result to messages
-        this.messages.push({
-          role: 'tool',
-          tool_call_id: tc.id,
-          name: tc.name,
-          content: resultStr,
-        });
-
-        // Inject self-improvement directive if execution failed
-        if (result && result.error) {
-          this.messages.push({
-            role: 'user',
-            content: `SYSTEM WARNING: The tool call '${tc.name}' failed with an error. Before proceeding with next steps, you must: 1. Reflect on why it failed. 2. Choose an alternative approach. 3. Optionally call 'remember_lesson' to document a permanent rule or skill to avoid this class of mistakes in the future.`
-          });
-        }
-
-// If this was a screenshot/observe result, inject the image as a vision message
-if (hasScreenshot && result.base64 && this.provider.supportsVision) {
-const desc = result.pageContent
-? `Screenshot taken. Page: "${result.pageContent.title}" at ${result.pageContent.url}`
-: 'Screenshot taken.';
-this.messages.push({
-__image__: true,
-role: 'user',
-imageBase64: result.base64,
-imageMimeType: result.mimeType || 'image/jpeg',
-textBefore: desc,
-});
-}
-      }
-
-      // Minimal 1.5s delay between steps to prevent overwhelming API
-      await new Promise(r => setTimeout(r, 1500));
-
-      // Loop back to let AI process tool results and decide next action
+      // Execute tool calls using common method
+      await this._processToolCalls(toolCalls);
     }
 
-    if (this.aborted) return '(Task stopped by user)';
-    return '(Max steps reached — task may be incomplete)';
+    // If we exit the loop without returning, it means we hit MAX_STEPS or were aborted
+    const finalText = this.messages.length > 0 ? this.messages[this.messages.length - 1].content : null;
+    return finalText || 'Task completed or aborted.';
   }
 
-  getHistory() { return this.messages; }
-
   /**
-   * Hot-swap provider config without restarting.
-   * Accepts any subset of: { baseURL, model, apiKey, supportsVision }
+   * Process an array of tool calls: execute each, handle errors, update messages.
+   * Common logic extracted to reduce duplication.
    */
-  switchProvider(overrides = {}) {
-    this.provider = createProvider(overrides);
-    return this.provider.name;
+  async _processToolCalls(toolCalls) {
+    for (const tc of toolCalls) {
+      if (this.aborted) break;
+
+      this.onToolCall?.(tc.name, tc.args);
+
+      let result;
+      let execError = null;
+      try {
+        result = await executeTool(tc.name, tc.args);
+        this.onToolResult?.(tc.name, result, null);
+      } catch (err) {
+        execError = err;
+        result = { error: err.message };
+        this.onToolResult?.(tc.name, result, err);
+      }
+
+      const hasScreenshot = result?.__screenshot__;
+      // Build the text version of the result (without the huge base64)
+      const resultForText = hasScreenshot
+        ? { savedTo: result.savedTo, pageContent: result.pageContent || null }
+        : result;
+      const resultStr = JSON.stringify(resultForText);
+
+      // Add tool result to messages
+      this.messages.push({ role: 'tool', tool_call_id: tc.id, name: tc.name, content: resultStr });
+
+      if (result && result.error) {
+        this.messages.push({ 
+          role: 'user', 
+          content: `SYSTEM WARNING: The tool call '${tc.name}' failed with an error. Before proceeding with next steps, you must: 1. Reflect on why it failed. 2. Choose an alternative approach. 3. Optionally call 'remember_lesson' to document a permanent rule or skill to avoid this class of mistakes in the future.` 
+        });
+      }
+
+      if (hasScreenshot && result.base64 && this.provider.supportsVision) {
+        const desc = result.pageContent ? `Screenshot taken. Page: "${result.pageContent.title}" at ${result.pageContent.url}` : 'Screenshot taken.';
+        this.messages.push({ __image__: true, role: 'user', imageBase64: result.base64, imageMimeType: result.mimeType || 'image/jpeg', textBefore: desc });
+      }
+    }
   }
 }
