@@ -131,16 +131,26 @@ export class Agent {
 
     result.push({ role: 'system', content: fullSystemPrompt });
 
-    // Find the index of the VERY LAST image message in the history
     // Only keep last 10 messages to minimize token usage
     const recentMessages = this.messages.slice(-10);
+
+    // Find the index of the latest image message across all recent messages.
+    // Previously this was incorrectly checked against the last position only,
+    // which dropped the screenshot whenever a text message followed it.
+    let lastImageIdx = -1;
+    for (let i = recentMessages.length - 1; i >= 0; i--) {
+      if (recentMessages[i].__image__) {
+        lastImageIdx = i;
+        break;
+      }
+    }
     
     for (let i = 0; i < recentMessages.length; i++) {
       const msg = recentMessages[i];
       
-      // Handle image messages - only keep absolute latest
+      // Handle image messages — include only the latest one
       if (msg.__image__) {
-        if (i === recentMessages.length - 1) {
+        if (i === lastImageIdx) {
           result.push({
             role: 'user',
             __image__: true,
@@ -322,47 +332,38 @@ export class Agent {
           content: resultStr,
         });
 
-        // Inject self-improvement directive if execution failed
+        // If the tool failed, inject a system warning into the conversation
         if (result && result.error) {
           this.messages.push({
             role: 'user',
-            content: `SYSTEM WARNING: The tool call '${tc.name}' failed with an error. Before proceeding with next steps, you must: 1. Reflect on why it failed. 2. Choose an alternative approach. 3. Optionally call 'remember_lesson' to document a permanent rule or skill to avoid this class of mistakes in the future.`
+            content: `SYSTEM WARNING: The tool call '${tc.name}' failed with an error: ${result.error}. Before proceeding, reflect on why it failed and choose an alternative approach. Optionally call 'remember_lesson' to save a rule preventing this class of mistake.`,
           });
         }
 
-// If this was a screenshot/observe result, inject the image as a vision message
-if (hasScreenshot && result.base64 && this.provider.supportsVision) {
-const desc = result.pageContent
-? `Screenshot taken. Page: "${result.pageContent.title}" at ${result.pageContent.url}`
-: 'Screenshot taken.';
-this.messages.push({
-__image__: true,
-role: 'user',
-imageBase64: result.base64,
-imageMimeType: result.mimeType || 'image/jpeg',
-textBefore: desc,
-});
-}
+        // If the result contains a screenshot, inject it as a vision message
+        if (hasScreenshot && result.base64 && this.provider.supportsVision) {
+          const desc = result.pageContent
+            ? `Screenshot taken. Page: "${result.pageContent.title}" at ${result.pageContent.url}`
+            : 'Screenshot taken.';
+          this.messages.push({
+            __image__: true,
+            role: 'user',
+            imageBase64: result.base64,
+            imageMimeType: result.mimeType || 'image/jpeg',
+            textBefore: desc,
+          });
+        }
       }
 
-      // Minimal 1.5s delay between steps to prevent overwhelming API
-      await new Promise(r => setTimeout(r, 1500));
-
-      // Loop back to let AI process tool results and decide next action
+      // Small delay to avoid hammering the API
+      await new Promise(r => setTimeout(r, 500));
     }
 
-    if (this.aborted) return '(Task stopped by user)';
-    return '(Max steps reached — task may be incomplete)';
-  }
+    if (this.aborted) {
+      console.log('\n  [Agent aborted by user]');
+      return 'Task aborted.';
+    }
 
-  getHistory() { return this.messages; }
-
-  /**
-   * Hot-swap provider config without restarting.
-   * Accepts any subset of: { baseURL, model, apiKey, supportsVision }
-   */
-  switchProvider(overrides = {}) {
-    this.provider = createProvider(overrides);
-    return this.provider.name;
+    return `Task stopped after reaching the maximum step limit (${MAX_STEPS}). The task may not be fully complete.`;
   }
 }
