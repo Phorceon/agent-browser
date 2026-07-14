@@ -3,6 +3,9 @@ const puppeteer = require('puppeteer-core');
 const CHROME_EXECUTABLE = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const CHROME_PROFILE_PATH = '/Users/aditya/Library/Application Support/Google/Chrome/Profile 12';
 
+/** Simple delay — replaces the deprecated page.waitForTimeout */
+const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
 async function launchBrowser() {
   console.log('🚀 Launching YOUR Chrome with Profile 12...');
   console.log(`🔵 Chrome: ${CHROME_EXECUTABLE}`);
@@ -30,25 +33,25 @@ async function launchBrowser() {
   await page.goto('https://www.youtube.com', { waitUntil: 'networkidle' });
   console.log('📄 YouTube loaded');
 
-  await page.waitForTimeout(2000);
+  await delay(2000);
 
   console.log('🔍 Searching for Judelow...');
   await page.goto('https://www.youtube.com/results?search_query=Judelow', { waitUntil: 'networkidle' });
 
-  await page.waitForTimeout(2000);
+  await delay(2000);
 
   const videoSelector = 'ytd-video-renderer, ytd-rich-item-renderer, ytd-grid-video-renderer';
   const video = await page.waitForSelector(videoSelector, { timeout: 10000 });
   console.log('📋 Found video, clicking...');
   await video.click();
 
-  await page.waitForTimeout(4000);
+  await delay(4000);
   console.log('✅ Video page loaded');
 
   console.log('⬇️ Scrolling to comments...');
   for (let i = 0; i < 15; i++) {
     await page.evaluate(() => window.scrollBy(0, 1000));
-    await page.waitForTimeout(500);
+    await delay(500);
     const comments = await page.$('ytd-comments, ytd-comment-thread-renderer, #comments');
     if (comments) {
       console.log('💬 Comments found!');
@@ -63,4 +66,9 @@ async function launchBrowser() {
   return { browser, page };
 }
 
-launchBrowser().catch(console.error);
+module.exports = { launchBrowser };
+
+// Only auto-run when executed directly (node browser_control.js), not when required as a module.
+if (require.main === module) {
+  launchBrowser().catch(console.error);
+}
