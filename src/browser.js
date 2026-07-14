@@ -61,9 +61,16 @@ export async function launchBrowser(config = {}) {
   const {
     profileDir = process.env.EDGE_PROFILE_DIR || 'Profile 11',
     userDataDir = process.env.EDGE_USER_DATA_DIR || DEFAULT_USER_DATA,
-    headless = process.env.HEADLESS !== 'false' ? false : false,
+    headless = process.env.HEADLESS === 'true',
     cdpUrl = process.env.CDP_URL || 'http://localhost:9222',
   } = config;
+
+  // Setup global hooks to suppress OS Finder dialogues
+  const setupPageHooks = (page) => {
+    page.on('filechooser', () => {
+      console.log(chalk.yellow(`\n  ⚠ Native OS File Picker intercepted and suppressed. Agent must use upload_file instead!`));
+    });
+  };
 
   // 1. Try to connect to existing CDP first (This enables persistence between Agent restarts!)
   try {
@@ -76,6 +83,10 @@ export async function launchBrowser(config = {}) {
       browserContext = null;
       activePage = null;
     });
+
+    // Apply file chooser hooks to existing context and pages
+    browserContext.on('page', setupPageHooks);
+    browserContext.pages().forEach(setupPageHooks);
 
     console.log(chalk.green(`✓ Connected to existing Edge session via CDP`));
     return browserContext;
@@ -140,12 +151,6 @@ export async function launchBrowser(config = {}) {
     );
   }
 
-  // Setup global hooks to suppress OS Finder dialogues
-  const setupPageHooks = (page) => {
-    page.on('filechooser', () => {
-      console.log(chalk.yellow(`\n  ⚠ Native OS File Picker intercepted and suppressed. Agent must use upload_file instead!`));
-    });
-  };
   browserContext.on('page', setupPageHooks);
   browserContext.pages().forEach(setupPageHooks);
 
