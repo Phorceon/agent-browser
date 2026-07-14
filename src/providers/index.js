@@ -98,7 +98,7 @@ export function createProvider(overrides = {}) {
         if (delta?.tool_calls) {
           for (const tc of delta.tool_calls) {
             if (!toolCalls[tc.index]) toolCalls[tc.index] = { id: '', name: '', arguments: '' };
-            if (tc.id)                   toolCalls[tc.index].id        += tc.id;
+            if (tc.id && !toolCalls[tc.index].id) toolCalls[tc.index].id = tc.id; // Set ID once to avoid duplication
             if (tc.function?.name)       toolCalls[tc.index].name       = tc.function.name;
             if (tc.function?.arguments)  toolCalls[tc.index].arguments += tc.function.arguments;
           }
