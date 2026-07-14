@@ -10,7 +10,7 @@ import 'dotenv/config';
 import readline from 'readline';
 import chalk from 'chalk';
 import fs from 'fs';
-import { launchBrowser, getAllTabs, closeBrowser, getActivePage } from './src/browser.js';
+import { launchBrowser, getAllTabs, closeBrowser, getActivePage, switchToTab } from './src/browser.js';
 import { Agent } from './src/agent.js';
 
 let lastUserLine = '';
@@ -221,7 +221,7 @@ async function main() {
         streamBuf += tok;
         while (streamBuf.length > 0) {
           if (!inThink) {
-            const startIdx = streamBuf.indexOf('<think>');
+            const startIdx = streamBuf.indexOf('');
             if (startIdx !== -1) {
               process.stdout.write(c.green(streamBuf.slice(0, startIdx)));
               inThink = true;
@@ -229,7 +229,7 @@ async function main() {
               process.stdout.write(c.dim('\n[AI is thinking...]\n'));
             } else {
               const lastLt = streamBuf.lastIndexOf('<');
-              if (lastLt !== -1 && '<think>'.startsWith(streamBuf.slice(lastLt))) {
+              if (lastLt !== -1 && ''.startsWith(streamBuf.slice(lastLt))) {
                 if (lastLt > 0) {
                   process.stdout.write(c.green(streamBuf.slice(0, lastLt)));
                   streamBuf = streamBuf.slice(lastLt);
@@ -328,7 +328,6 @@ async function main() {
             console.log(c.red('  Usage: /switch <tab-index>'));
           } else {
             try {
-              const { switchToTab } = await import('./src/browser.js');
               const page = await switchToTab(idx);
               console.log(c.green(`  ✓ Switched to tab ${idx}`));
             } catch (e) {
@@ -393,44 +392,29 @@ async function main() {
 
         default:
           console.log(c.red(`  Unknown command: /${cmd}`));
-          console.log(c.dim('  Type /help for commands'));
+          console.log(c.dim('  Type /help for available commands.'));
+          break;
       }
 
       rl.prompt();
       return;
     }
 
-    // ─── Agent task ───────────────────────────────────────────────────────────
-    if (agentRunning) {
-      console.log(c.yellow('  Agent is still running. Use /stop to cancel.'));
-      rl.prompt();
-      return;
-    }
-
+    // ─── Send to Agent ───────────────────────────────────────────────────────
     printUserMessage(line);
     printAssistantStart();
-    agentRunning = true;
 
+    agentRunning = true;
     try {
-      const result = await agent.run(line);
-      // If we got back from the stream without anything printed via onToken, print it
-      if (result && result !== '(Task stopped by user)' && result !== '(Max steps reached — task may be incomplete)') {
-        // Result was already streamed
-      } else if (result === '(Task stopped by user)') {
-        console.log(c.yellow('\n  ■ Task stopped'));
-      } else if (result === '(Max steps reached — task may be incomplete)') {
-        console.log(c.yellow('\n  ⚠ Max steps reached'));
-      }
+      await agent.run(line);
     } catch (err) {
-      console.log();
-      console.log(c.red('\n  Error: ' + err.message));
-      if (err.message.includes('API key') || err.message.includes('api_key')) {
-        console.log(c.yellow('  Check your API key in .env'));
+      if (err.name !== 'AbortError') {
+        console.log(c.red('\n  Agent error: ' + err.message));
       }
     } finally {
       agentRunning = false;
+      currentAgent = null;
       console.log();
-      printDivider('─', c.dim);
       rl.prompt();
     }
   });
@@ -440,24 +424,6 @@ async function main() {
     await closeBrowser();
     process.exit(0);
   });
-
-  // Handle Ctrl+C gracefully
-  process.on('SIGINT', async () => {
-    if (agentRunning && currentAgent) {
-      currentAgent.abort();
-      logInterruptedTask();
-      console.log(c.yellow('\n  ■ Stopped agent (logged to memory) (Ctrl+C again to exit)'));
-      agentRunning = false;
-      rl.prompt();
-    } else {
-      console.log(c.dim('\nExiting...'));
-      await closeBrowser();
-      process.exit(0);
-    }
-  });
 }
 
-main().catch((err) => {
-  console.error(chalk.red('Fatal error: ' + err.message));
-  process.exit(1);
-});
+main();
