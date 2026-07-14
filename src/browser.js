@@ -29,7 +29,12 @@ export function getEdgeProfiles(userDataDir = DEFAULT_USER_DATA) {
     throw new Error(`Edge Local State not found at: ${localStatePath}\nIs Edge installed?`);
   }
 
-  const localState = JSON.parse(readFileSync(localStatePath, 'utf8'));
+  let localState;
+  try {
+    localState = JSON.parse(readFileSync(localStatePath, 'utf8'));
+  } catch (err) {
+    throw new Error(`Failed to parse Edge Local State at ${localStatePath}: ${err.message}`);
+  }
   const profileCache = localState?.profile?.info_cache || {};
 
   const profiles = Object.entries(profileCache).map(([folder, info]) => ({
@@ -61,7 +66,7 @@ export async function launchBrowser(config = {}) {
   const {
     profileDir = process.env.EDGE_PROFILE_DIR || 'Profile 11',
     userDataDir = process.env.EDGE_USER_DATA_DIR || DEFAULT_USER_DATA,
-    headless = process.env.HEADLESS !== 'false' ? false : false,
+    headless = process.env.HEADLESS === 'true',
     cdpUrl = process.env.CDP_URL || 'http://localhost:9222',
   } = config;
 
