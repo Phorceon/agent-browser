@@ -1,9 +1,21 @@
 /**
  * providers/index.js — Single OpenAI-compatible provider
  *
- * Set BASE_URL and MODEL in .env.
+ * Required env vars in .env:
+ *   BASE_URL        – OpenAI-compatible endpoint URL
+ *   API_KEY         – auth key (use "none" for local models)
+ *   MODEL           – model identifier
+ *
+ * Optional env vars:
+ *   SUPPORTS_VISION – "true" if the model can process images
+ *
  * Works with any OpenAI-compatible endpoint:
  *   LiteLLM, Ollama, vLLM, LM Studio, Together, Groq, etc.
+ *
+ * NOTE: The AI_PROVIDER env var is a display-only label for the TUI
+ * header and does NOT affect which provider is used. The actual
+ * provider is always this OpenAI-compatible client configured via
+ * BASE_URL / API_KEY / MODEL.
  */
 
 import OpenAI from 'openai';
