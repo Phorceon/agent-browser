@@ -61,7 +61,7 @@ export async function launchBrowser(config = {}) {
   const {
     profileDir = process.env.EDGE_PROFILE_DIR || 'Profile 11',
     userDataDir = process.env.EDGE_USER_DATA_DIR || DEFAULT_USER_DATA,
-    headless = process.env.HEADLESS !== 'false' ? false : false,
+    headless = process.env.HEADLESS === 'true' ? true : false,
     cdpUrl = process.env.CDP_URL || 'http://localhost:9222',
   } = config;
 
