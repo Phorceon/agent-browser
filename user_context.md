@@ -13,13 +13,12 @@
 - I am a man by the way in case of gender. 
 - My resume is located at: /Users/aditya/Downloads/MyResume.pdf e so upload in the resume for these applications 
 - I am a U.S Citizen
-- I am a high schooler, interested in electrical engineering
+- I am a high school junior interested in electrical engineering.
 - Salary expectations put minimum wage according to whatever state that is, if you don't know go for 10 bucks an hour.
 - I can start whenver, the date today is April fifth, 2026
 - I AM NOT RELOCATING, I want to work remote
 - If it 50 miles within Tracy, CA then I can work onsite, otherwise remote.
 - Otheriwse, skip the application
-- Currently a high school junior
 
 
 ONLY CONFIRM YOU SUBMITTED WITH A SCREENSHOT OF THE SUBMISSION PAGE
