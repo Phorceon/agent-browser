@@ -6,7 +6,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "setup": "node scripts/setup.js"
+    "setup": "node scripts/setup.js",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --passWithNoTests 2>/dev/null || node test/provider.test.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
