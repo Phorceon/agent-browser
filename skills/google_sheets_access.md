@@ -23,13 +23,8 @@ https://docs.google.com/spreadsheets/d/1sHCSCb1iuHyjuqU25Mer3bvjN8znL4tzUtoQ_psY
 
 Then use `navigate()` to go to that URL - it will download the CSV as text content.
 
-### Method 2: Use the CSV Export URL in a New Tab
-1. Construct export URL: `{spreadsheet_id}/export?format=csv&gid={sheet_id}`
-2. `navigate(url: "https://docs.google.com/spreadsheets/d/.../export?format=csv&gid=...")`
-3. The page will show raw CSV data that you can read
-
-### Method 3: URL Parameter for CSV
-For Google Sheets, add `/gviz/tq` endpoint:
+### Method 2: Use the gviz/tq Endpoint for CSV
+For Google Sheets, add the `/gviz/tq` endpoint:
 ```
 https://docs.google.com/spreadsheets/d/{spreadsheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}
 ```
@@ -43,5 +38,3 @@ https://docs.google.com/spreadsheets/d/{spreadsheet_id}/gviz/tq?tqx=out:csv&shee
 ## FINDING SHEET ID
 - Look at the URL: `.../spreadsheets/d/{spreadsheet_id}/edit#gid={sheet_id}`
 - The number after `gid=` is the sheet ID
-
-(End of skill)
