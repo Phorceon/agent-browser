@@ -3,7 +3,12 @@ const puppeteer = require('puppeteer-core');
 const CHROME_EXECUTABLE = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const CHROME_PROFILE_PATH = '/Users/aditya/Library/Application Support/Google/Chrome/Profile 12';
 
-async function launchBrowser() {
+/**
+ * Launches Chrome with a specific profile, navigates to YouTube, searches for "Judelow",
+ * clicks the first video, scrolls to comments, and takes a screenshot.
+ * @returns {Promise<{browser: object, page: object}>} The browser and page objects.
+ */
+async function runYouTubeAutomation() {
   console.log('🚀 Launching YOUR Chrome with Profile 12...');
   console.log(`🔵 Chrome: ${CHROME_EXECUTABLE}`);
   console.log(`📁 Profile: ${CHROME_PROFILE_PATH}`);
@@ -63,4 +68,4 @@ async function launchBrowser() {
   return { browser, page };
 }
 
-launchBrowser().catch(console.error);
+runYouTubeAutomation().catch(console.error);
