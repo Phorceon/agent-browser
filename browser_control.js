@@ -1,9 +1,30 @@
 const puppeteer = require('puppeteer-core');
+const fs = require('fs');
 
 const CHROME_EXECUTABLE = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const CHROME_PROFILE_PATH = '/Users/aditya/Library/Application Support/Google/Chrome/Profile 12';
 
+/**
+ * Launches a local Chrome instance with Profile 12, navigates to YouTube,
+ * searches for "Judelow", clicks the first result, scrolls to comments,
+ * and saves a full-page screenshot.
+ *
+ * @returns {Promise<{browser: import('puppeteer-core').Browser, page: import('puppeteer-core').Page}>}
+ */
 async function launchBrowser() {
+  if (!fs.existsSync(CHROME_EXECUTABLE)) {
+    throw new Error(
+      `Chrome executable not found at: ${CHROME_EXECUTABLE}\n` +
+      'Adjust CHROME_EXECUTABLE to match your installation path.'
+    );
+  }
+  if (!fs.existsSync(CHROME_PROFILE_PATH)) {
+    throw new Error(
+      `Chrome profile directory not found at: ${CHROME_PROFILE_PATH}\n` +
+      'Adjust CHROME_PROFILE_PATH to match an existing profile.'
+    );
+  }
+
   console.log('🚀 Launching YOUR Chrome with Profile 12...');
   console.log(`🔵 Chrome: ${CHROME_EXECUTABLE}`);
   console.log(`📁 Profile: ${CHROME_PROFILE_PATH}`);
