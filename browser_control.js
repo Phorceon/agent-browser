@@ -1,9 +1,29 @@
 const puppeteer = require('puppeteer-core');
+const fs = require('fs');
 
 const CHROME_EXECUTABLE = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const CHROME_PROFILE_PATH = '/Users/aditya/Library/Application Support/Google/Chrome/Profile 12';
 
+/** Simple delay helper replacing deprecated page.waitForTimeout */
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function launchBrowser() {
+  // Guard: verify Chrome executable exists before attempting to launch
+  if (!fs.existsSync(CHROME_EXECUTABLE)) {
+    throw new Error(
+      `Chrome executable not found at: ${CHROME_EXECUTABLE}\n` +
+      'Check the CHROME_EXECUTABLE path or install Google Chrome.'
+    );
+  }
+
+  // Guard: verify profile directory exists
+  if (!fs.existsSync(CHROME_PROFILE_PATH)) {
+    throw new Error(
+      `Chrome profile not found at: ${CHROME_PROFILE_PATH}\n` +
+      'Check the CHROME_PROFILE_PATH constant or create the profile.'
+    );
+  }
+
   console.log('🚀 Launching YOUR Chrome with Profile 12...');
   console.log(`🔵 Chrome: ${CHROME_EXECUTABLE}`);
   console.log(`📁 Profile: ${CHROME_PROFILE_PATH}`);
@@ -30,25 +50,25 @@ async function launchBrowser() {
   await page.goto('https://www.youtube.com', { waitUntil: 'networkidle' });
   console.log('📄 YouTube loaded');
 
-  await page.waitForTimeout(2000);
+  await delay(2000);
 
   console.log('🔍 Searching for Judelow...');
   await page.goto('https://www.youtube.com/results?search_query=Judelow', { waitUntil: 'networkidle' });
 
-  await page.waitForTimeout(2000);
+  await delay(2000);
 
   const videoSelector = 'ytd-video-renderer, ytd-rich-item-renderer, ytd-grid-video-renderer';
   const video = await page.waitForSelector(videoSelector, { timeout: 10000 });
   console.log('📋 Found video, clicking...');
   await video.click();
 
-  await page.waitForTimeout(4000);
+  await delay(4000);
   console.log('✅ Video page loaded');
 
   console.log('⬇️ Scrolling to comments...');
   for (let i = 0; i < 15; i++) {
     await page.evaluate(() => window.scrollBy(0, 1000));
-    await page.waitForTimeout(500);
+    await delay(500);
     const comments = await page.$('ytd-comments, ytd-comment-thread-renderer, #comments');
     if (comments) {
       console.log('💬 Comments found!');
@@ -63,4 +83,9 @@ async function launchBrowser() {
   return { browser, page };
 }
 
-launchBrowser().catch(console.error);
+// Only auto-run when executed directly (not when required/imported as a module)
+if (require.main === module) {
+  launchBrowser().catch(console.error);
+}
+
+module.exports = { launchBrowser };
