@@ -27,8 +27,8 @@ describe('createProvider', () => {
 
   it('should throw when baseURL is not provided', () => {
     delete process.env.BASE_URL;
-    delete process.env.MODEL;
-    expect(() => createProvider({ model: 'test-model' })).toThrow(
+    process.env.MODEL = 'test-model';
+    expect(() => createProvider({})).toThrow(
       'BASE_URL is not set in .env'
     );
   });
