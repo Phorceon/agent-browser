@@ -64,7 +64,7 @@ export function getEdgeProfiles(userDataDir = DEFAULT_USER_DATA) {
  */
 export async function launchBrowser(config = {}) {
   const {
-    profileDir = process.env.EDGE_PROFILE_DIR || 'Profile 11',
+    profileDir = process.env.EDGE_PROFILE_DIR || 'Profile 12',
     userDataDir = process.env.EDGE_USER_DATA_DIR || DEFAULT_USER_DATA,
     headless = process.env.HEADLESS === 'true',
     cdpUrl = process.env.CDP_URL || 'http://localhost:9222',
