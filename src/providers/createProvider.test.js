@@ -34,9 +34,8 @@ describe('createProvider', () => {
   });
 
   it('should throw when model is not provided', () => {
-    process.env.BASE_URL = 'https://api.example.com';
     delete process.env.MODEL;
-    expect(() => createProvider({})).toThrow('MODEL is not set in .env');
+    expect(() => createProvider({ baseURL: 'https://api.example.com' })).toThrow('MODEL is not set in .env');
   });
 
   it('should use overrides over env vars', () => {
