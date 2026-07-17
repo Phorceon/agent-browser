@@ -72,6 +72,7 @@ export class Agent {
     this.onToolResult = onToolResult;
     this.aborted = false;
     this._running = false;
+    this._cachedSystemPrompt = null;
   }
 
   abort() { this.aborted = true; }
@@ -83,15 +84,17 @@ export class Agent {
   }
 
   /**
-   * Convert our internal message format to the provider's expected format.
-   * Key: handle __image__ messages (vision content from screenshots).
+   * Build the full system prompt once, caching the result so that
+   * user_context.md, memory.md, and skills files are read from disk
+   * only once per Agent instance rather than on every iteration.
    */
-  _buildProviderMessages() {
-    const result = [];
+  _buildSystemPrompt() {
+    if (this._cachedSystemPrompt !== null) {
+      return this._cachedSystemPrompt;
+    }
 
-    // Insert system prompt for OpenAI-style providers
     let fullSystemPrompt = SYSTEM_PROMPT;
-    
+
     // Inject custom user context if the file exists
     try {
       const contextPath = join(process.cwd(), 'user_context.md');
@@ -131,15 +134,27 @@ export class Agent {
       // Silently ignore
     }
 
-    result.push({ role: 'system', content: fullSystemPrompt });
+    this._cachedSystemPrompt = fullSystemPrompt;
+    return fullSystemPrompt;
+  }
+
+  /**
+   * Convert our internal message format to the provider's expected format.
+   * Key: handle __image__ messages (vision content from screenshots).
+   */
+  _buildProviderMessages() {
+    const result = [];
+
+    // Insert system prompt (cached after first call)
+    result.push({ role: 'system', content: this._buildSystemPrompt() });
 
     // Find the index of the VERY LAST image message in the history
     // Only keep last 10 messages to minimize token usage
     const recentMessages = this.messages.slice(-10);
-    
+
     for (let i = 0; i < recentMessages.length; i++) {
       const msg = recentMessages[i];
-      
+
       // Handle image messages - only keep absolute latest
       if (msg.__image__) {
         if (i === recentMessages.length - 1) {
@@ -153,7 +168,7 @@ export class Agent {
         }
         continue;
       }
-      
+
       // Truncate all tool results to 500 chars max
       if (msg.role === 'tool') {
         const truncated = msg.content?.slice(0, 500) || '';
@@ -163,7 +178,7 @@ export class Agent {
         });
         continue;
       }
-      
+
       result.push(msg);
     }
 
@@ -329,15 +344,9 @@ export class Agent {
 
         if (this.aborted) break;
 
-        // Small delay between steps to be polite
-        await new Promise(r => setTimeout(r, 100));
+        // Brief pause between steps to avoid hammering the API
+        await new Promise(r => setTimeout(r, 1500));
       }
-
-      if (steps >= MAX_STEPS) {
-        return `[Agent reached maximum steps (${MAX_STEPS}). Stopping.]`;
-      }
-
-      return null;
     } finally {
       this._running = false;
     }
