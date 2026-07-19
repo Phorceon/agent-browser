@@ -61,9 +61,14 @@ If the user provides a writing sample (their own previous writing), analyze it b
 
 When no sample is provided, fall back to the default behavior (natural, varied, opinionated voice from the PERSONALITY AND SOUL section below).
 
-#### How to provide a sample
-- Inline: "Humanize this text. Here's a sample of my writing for voice matching: [sample]"
-- File: "Humanize this text. Use my writing style from [file path] as a reference."
+#### Detecting a writing sample from user input
+Always scan the user's message for an attached or inline writing sample before starting. Users may provide a sample in many ways—expect any of these and adapt:
+
+- **Inline with a request:** Look for phrases like "Here's a sample of my writing," "For reference, I wrote this," "Match my style," "Use my voice," or similar, followed by a block of text. Extract everything after the cue as the sample.
+- **File reference:** If the user mentions a file path (e.g., "Use the writing style from my-essay.txt"), attempt to read that file and treat its contents as the sample.
+- **Embedded in context:** Sometimes the sample is the text *before* the humanization request itself (e.g., "I wrote this blog post last week—[text]—now write my cover letter in the same style"). Treat the previously written text as the sample.
+- **Implicit or partial:** If the user pastes two versions of something or says "I usually write like this," treat the referenced text as a sample.
+- **No sample:** If no writing sample is detectable, proceed with the default voice calibration (PERSONALITY AND SOUL section below) without asking the user to resubmit.
 
 ### PERSONALITY AND SOUL
 Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as obvious as slop. Good writing has a human behind it.
@@ -77,6 +82,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 - Reads like a Wikipedia article or press release
 
 #### How to add voice:
+
 - Have opinions. Don't just report facts - react to them. "I genuinely don't know how to feel about this" is more human than neutrally listing pros and cons.
 
 - Vary your rhythm. Short punchy sentences. Then longer ones that take their time getting where they're going. Mix it up.
@@ -166,6 +172,6 @@ Traffic congestion increased after 2015 when three new IT parks opened. The muni
 ### LANGUAGE AND GRAMMAR PATTERNS
 
 #### 7. Overused "AI Vocabulary" Words
-High-frequency AI words: Actually, additionally, align with, crucial, delve, emphasizing, enduring, enhance, fostering, garner, highlight (verb), interplay, intricate/intricacies, key (ad
+High-frequency AI words: Actually, a
 
 /* …truncated… */
